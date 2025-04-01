@@ -1,0 +1,22 @@
+schema_version = "1.0.0"
+
+id = "noppers_bone_to_mesh"
+version = "1.0.0"
+name = "Bone To Mesh"
+tagline = "Convert armature bones to mesh objects"
+maintainer = "NOPPERS <noppersvrc@proton.me>"
+
+type = "add-on"
+
+# Only keeping essential fields
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+tags = [ "Mesh", "Rigging"]
+
+description = """
+A utility addon to convert bones to mesh and have the mesh weighted to the bone. This is useful for visualizing the bone positions in games.
+"""
