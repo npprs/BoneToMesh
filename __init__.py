@@ -1,12 +1,9 @@
 import bpy
 import mathutils
-from mathutils import Vector
 import math
-from math import sqrt
 
 # Create Panels and Operators
-class BoneToMeshPanel(bpy.types.Panel):
-    bl_idname = "noppers_tools.bone_to_mesh_panel"
+class VIEW3D_PT_BoneToMeshPanel(bpy.types.Panel):
     bl_label = "Bone To Mesh"
     bl_description = "Create a mesh from the selected bone"
     bl_space_type = 'VIEW_3D'
@@ -16,31 +13,37 @@ class BoneToMeshPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        # Check if an armature is selected
-        is_armature_selected = (context.active_object and context.active_object.type == 'ARMATURE')
-        
-        # Create a row for the operator
+        # Check if an armature is selected and editor is in Object mode
+        bone_to_mesh_enabled = False
+        bone_to_mesh_enabled = (context.active_object is not None
+                                and context.active_object.type == 'ARMATURE'
+                                and context.active_object.mode == 'OBJECT')
+
         row = layout.row()
-        # Set the row's enabled state - this will visually disable the button when False
-        row.enabled = is_armature_selected
-        # Add the operator to the row
-        row.operator("object.bone_to_mesh", text="Create Mesh", icon='MESH_CUBE')
+        row.enabled = bone_to_mesh_enabled
+        row.operator("object.bone_to_mesh",
+                     text="Create Mesh",
+                     icon='MESH_CUBE')
         
         # Display a message explaining why the button is disabled
-        if not is_armature_selected:
+        if not bone_to_mesh_enabled:
             info_row = layout.row()
             info_row.alert = True  # Makes the text red for emphasis
-            info_row.label(text="Select an armature first", icon='ERROR')
+            info_row.label(text="Select an armature first",
+                           icon='ERROR')
 
-def CreateMesh():
-    obj = bpy.context.active_object
+def createMesh(self, context):
+    obj = context.active_object
 
     if obj is None:
-        print("No selection")
+        self.report({'ERROR'}, "No selection")
+        return False
     elif obj.type != 'ARMATURE':
-        print("Armature expected")
+        self.report({'WARNING'}, "Armature expected")
+        return False
     else:
-        processArmature(bpy.context, obj)
+        processArmature(self, context, obj)
+        return True
 
 def meshFromArmature(arm):
     name = arm.name + "_mesh"
@@ -96,8 +99,8 @@ def boneGeometry(l1, l2, x, z, baseSize, l1Size, l2Size, base, roll):
 
     return verts, faces
 
-def processArmature(context, arm, genVertexGroups=True):
-    print("processing armature {0}".format(arm.name))
+def processArmature(self, context, arm, genVertexGroups=True):
+    self.report({'INFO'}, "Processing armature: {0}".format(arm.name))
 
     meshObj = meshFromArmature(arm)
     context.collection.objects.link(meshObj)
@@ -112,19 +115,20 @@ def processArmature(context, arm, genVertexGroups=True):
     try:
         for editBone in [b for b in arm.data.edit_bones if b.use_deform]:
             boneName = editBone.name
-            print(boneName)
+            self.report({'DEBUG'}, f"Processing bone: {boneName}")
 
             editBoneHead = editBone.head
             editBoneTail = editBone.tail
             editBoneVector = editBoneTail - editBoneHead
-            editBoneSize = editBoneVector.dot(editBoneVector)
+            # editBoneSize = editBoneVector.dot(editBoneVector)
             editBoneX = editBone.x_axis
             editBoneZ = editBone.z_axis
             editBoneHeadRadius = editBone.head_radius
             editBoneTailRadius = editBone.tail_radius
 
             baseIndex = len(verts)
-            baseSize = sqrt(editBoneSize)
+            # baseSize = sqrt(editBoneSize)
+            baseSize = editBoneVector.length
             newVerts, newFaces = boneGeometry(editBoneHead, editBoneTail, editBoneX, editBoneZ, baseSize, editBoneHeadRadius, editBoneTailRadius, baseIndex, editBone.roll)
 
             verts.extend(newVerts)
@@ -136,7 +140,7 @@ def processArmature(context, arm, genVertexGroups=True):
         meshObj.data.from_pydata(verts, edges, faces)
 
     except Exception as e:
-        print(f"Error processing armature: {e}")
+        self.report({'ERROR'}, f"Error processing armature: {str(e)}")
         bpy.ops.object.mode_set(mode='OBJECT')
     else:
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -156,22 +160,25 @@ def processArmature(context, arm, genVertexGroups=True):
 
     return meshObj
 
-class MeshFromArmatureOperator(bpy.types.Operator):
+class BoneToMeshOperator(bpy.types.Operator):
     bl_idname = "object.bone_to_mesh"
     bl_label = "Create Mesh from Bones"
     bl_description = "Create a mesh from the selected bone"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        CreateMesh()
-        return {'FINISHED'}
+        if createMesh(self, context):
+            return {'FINISHED'}
+        return {'CANCELLED'}
 
 def register():
-    bpy.utils.register_class(MeshFromArmatureOperator)
-    bpy.utils.register_class(BoneToMeshPanel)
+    bpy.utils.register_class(VIEW3D_PT_BoneToMeshPanel)
+    bpy.utils.register_class(BoneToMeshOperator)
+    
 
 def unregister():
-    bpy.utils.unregister_class(MeshFromArmatureOperator)
-    bpy.utils.unregister_class(BoneToMeshPanel)
+    bpy.utils.unregister_class(VIEW3D_PT_BoneToMeshPanel)
+    bpy.utils.unregister_class(BoneToMeshOperator)
 
 if __name__ == "__main__":
     register()
