@@ -4,6 +4,34 @@ from mathutils import Vector
 import math
 from math import sqrt
 
+# Create Panels and Operators
+class BoneToMeshPanel(bpy.types.Panel):
+    bl_idname = "noppers_tools.bone_to_mesh_panel"
+    bl_label = "Bone To Mesh"
+    bl_description = "Create a mesh from the selected bone"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "NOPPERS Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        # Check if an armature is selected
+        is_armature_selected = (context.active_object and context.active_object.type == 'ARMATURE')
+        
+        # Create a row for the operator
+        row = layout.row()
+        # Set the row's enabled state - this will visually disable the button when False
+        row.enabled = is_armature_selected
+        # Add the operator to the row
+        row.operator("object.bone_to_mesh", text="Create Mesh", icon='MESH_CUBE')
+        
+        # Display a message explaining why the button is disabled
+        if not is_armature_selected:
+            info_row = layout.row()
+            info_row.alert = True  # Makes the text red for emphasis
+            info_row.label(text="Select an armature first", icon='ERROR')
+
 def CreateMesh():
     obj = bpy.context.active_object
 
@@ -129,8 +157,9 @@ def processArmature(context, arm, genVertexGroups=True):
     return meshObj
 
 class MeshFromArmatureOperator(bpy.types.Operator):
-    bl_idname = "object.mesh_from_armature"
-    bl_label = "Mesh From Armature"
+    bl_idname = "object.bone_to_mesh"
+    bl_label = "Create Mesh from Bones"
+    bl_description = "Create a mesh from the selected bone"
 
     def execute(self, context):
         CreateMesh()
@@ -138,9 +167,11 @@ class MeshFromArmatureOperator(bpy.types.Operator):
 
 def register():
     bpy.utils.register_class(MeshFromArmatureOperator)
+    bpy.utils.register_class(BoneToMeshPanel)
 
 def unregister():
     bpy.utils.unregister_class(MeshFromArmatureOperator)
+    bpy.utils.unregister_class(BoneToMeshPanel)
 
 if __name__ == "__main__":
     register()
